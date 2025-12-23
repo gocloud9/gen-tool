@@ -27,7 +27,7 @@ package main
 
 import (
 	"embed"
-	"html/template"
+	"text/template"
 	"log"
 	"strings"
 

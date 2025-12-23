@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"github.com/gocloud9/gen-tool/pkg/generate"
 	"github.com/gocloud9/gen-tool/pkg/parse"
-	"html/template"
 	"strings"
 	"testing"
+	"text/template"
 )
 
 func TestExecute(t *testing.T) {

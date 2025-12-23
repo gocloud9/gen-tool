@@ -2,7 +2,7 @@ package generate
 
 import (
 	"embed"
-	"html/template"
+	"text/template"
 )
 
 type Files []File

@@ -5,10 +5,10 @@ import (
 	"embed"
 	"fmt"
 	"go/format"
-	"html/template"
 	"log"
 	"os"
 	"path/filepath"
+	"text/template"
 )
 
 type File struct {

@@ -3,7 +3,7 @@ package generate
 import (
 	"embed"
 	"github.com/gocloud9/gen-tool/pkg/parse"
-	"html/template"
+	"text/template"
 )
 
 type Input struct {

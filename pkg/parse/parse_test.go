@@ -50,6 +50,9 @@ func TestParser_ParseDirectory(t *testing.T) {
 										TypeInfo: &parse.TypeInfo{
 											TypeName: "string",
 										},
+										Markers: map[string]string{
+											"+something:id": "true",
+										},
 									},
 									"DisplayName": {
 										Name: "DisplayName",
@@ -63,6 +66,7 @@ func TestParser_ParseDirectory(t *testing.T) {
 												TypeName: "string",
 											},
 										},
+										Markers: map[string]string{},
 									},
 									"Email": {
 										Name: "Email",
@@ -72,6 +76,7 @@ func TestParser_ParseDirectory(t *testing.T) {
 										TypeInfo: &parse.TypeInfo{
 											TypeName: "string",
 										},
+										Markers: map[string]string{},
 									},
 									"Age": {
 										Name: "Age",
@@ -81,6 +86,7 @@ func TestParser_ParseDirectory(t *testing.T) {
 										TypeInfo: &parse.TypeInfo{
 											TypeName: "int",
 										},
+										Markers: map[string]string{},
 									},
 								},
 								EmbeddedFields: map[string]parse.EmbeddedFieldInfo{},
@@ -119,6 +125,7 @@ func TestParser_ParseDirectory(t *testing.T) {
 										TypeInfo: &parse.TypeInfo{
 											TypeName: "string",
 										},
+										Markers: map[string]string{"+ID": "true"},
 									},
 									"DisplayName": {
 										Name: "DisplayName",
@@ -128,6 +135,7 @@ func TestParser_ParseDirectory(t *testing.T) {
 										TypeInfo: &parse.TypeInfo{
 											TypeName: "string",
 										},
+										Markers: map[string]string{},
 									},
 									"Email": {
 										Name: "Email",
@@ -137,6 +145,7 @@ func TestParser_ParseDirectory(t *testing.T) {
 										TypeInfo: &parse.TypeInfo{
 											TypeName: "string",
 										},
+										Markers: map[string]string{},
 									},
 								},
 								EmbeddedFields: map[string]parse.EmbeddedFieldInfo{},
@@ -162,21 +171,24 @@ func TestParser_ParseDirectory(t *testing.T) {
 										TypeInfo: &parse.TypeInfo{
 											TypeName: "string",
 										},
-										Tags: map[string][]string{"json": {"string_field"}, "yaml": {"stringField"}},
+										Tags:    map[string][]string{"json": {"string_field"}, "yaml": {"stringField"}},
+										Markers: map[string]string{},
 									},
 									"IntField": {
 										Name: "IntField",
 										TypeInfo: &parse.TypeInfo{
 											TypeName: "int",
 										},
-										Tags: map[string][]string{"json": {"int_field"}, "yaml": {"intField"}},
+										Tags:    map[string][]string{"json": {"int_field"}, "yaml": {"intField"}},
+										Markers: map[string]string{},
 									},
 									"BoolField": {
 										Name: "BoolField",
 										TypeInfo: &parse.TypeInfo{
 											TypeName: "bool",
 										},
-										Tags: map[string][]string{"json": {"bool_field"}, "yaml": {"boolField"}},
+										Tags:    map[string][]string{"json": {"bool_field"}, "yaml": {"boolField"}},
+										Markers: map[string]string{},
 									},
 									"ChanField": {
 										Name: "ChanField",
@@ -187,7 +199,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 												TypeName: "int",
 											},
 										},
-										Tags: map[string][]string{"json": {"chan_field"}, "yaml": {"chanField"}},
+										Tags:    map[string][]string{"json": {"chan_field"}, "yaml": {"chanField"}},
+										Markers: map[string]string{},
 									},
 									"MapField": {
 										Name: "MapField",
@@ -201,7 +214,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 												TypeName: "int",
 											},
 										},
-										Tags: map[string][]string{"json": {"map_field"}, "yaml": {"mapField"}},
+										Tags:    map[string][]string{"json": {"map_field"}, "yaml": {"mapField"}},
+										Markers: map[string]string{},
 									},
 									"SliceField": {
 										Name: "SliceField",
@@ -212,7 +226,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 												TypeName: "int",
 											},
 										},
-										Tags: map[string][]string{"json": {"slice_field"}, "yaml": {"sliceField"}},
+										Tags:    map[string][]string{"json": {"slice_field"}, "yaml": {"sliceField"}},
+										Markers: map[string]string{},
 									},
 									"SubStructField": {
 										Name: "SubStructField",
@@ -220,7 +235,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 											TypeName: "SubStruct",
 											IsStruct: true,
 										},
-										Tags: map[string][]string{"json": {"sub_struct_field"}, "yaml": {"subStructField"}},
+										Tags:    map[string][]string{"json": {"sub_struct_field"}, "yaml": {"subStructField"}},
+										Markers: map[string]string{},
 									},
 									"SubStructMapField": {
 										Name: "SubStructMapField",
@@ -235,7 +251,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 												IsStruct: true,
 											},
 										},
-										Tags: map[string][]string{"json": {"sub_struct_map_field"}, "yaml": {"subStructMapField"}},
+										Tags:    map[string][]string{"json": {"sub_struct_map_field"}, "yaml": {"subStructMapField"}},
+										Markers: map[string]string{},
 									},
 									"SubStructSliceField": {
 										Name: "SubStructSliceField",
@@ -247,7 +264,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 												IsStruct: true,
 											},
 										},
-										Tags: map[string][]string{"json": {"sub_struct_slice_field"}, "yaml": {"subStructSliceField"}},
+										Tags:    map[string][]string{"json": {"sub_struct_slice_field"}, "yaml": {"subStructSliceField"}},
+										Markers: map[string]string{},
 									},
 								},
 								EmbeddedFields: map[string]parse.EmbeddedFieldInfo{},
@@ -260,7 +278,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 										TypeInfo: &parse.TypeInfo{
 											TypeName: "string",
 										},
-										Tags: map[string][]string{},
+										Tags:    map[string][]string{},
+										Markers: map[string]string{},
 									},
 								},
 								EmbeddedFields: map[string]parse.EmbeddedFieldInfo{},

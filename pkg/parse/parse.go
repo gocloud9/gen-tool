@@ -512,6 +512,10 @@ func handleStructType(t *ast.TypeSpec, s *ast.StructType, pi *PackageInfo, comma
 	si.EmbeddedFields = map[string]EmbeddedFieldInfo{}
 
 	for _, f := range s.Fields.List {
+		if f.Doc == nil {
+			f.Doc, _ = commandGroupsByLastLine[f.Pos()]
+		}
+
 		if len(f.Names) == 0 {
 			efi := EmbeddedFieldInfo{
 				Name:     f.Type.(*ast.Ident).Name,
@@ -526,6 +530,7 @@ func handleStructType(t *ast.TypeSpec, s *ast.StructType, pi *PackageInfo, comma
 				Name:     f.Names[0].Name,
 				TypeInfo: exprToTypeInfo(f.Type),
 				Tags:     parseTags(f.Tag),
+				Markers:  markerValues(f.Doc),
 			}
 
 			si.Fields[fi.Name] = fi

@@ -20,7 +20,7 @@ func TestParser_ParseDirectory(t *testing.T) {
 		{
 			name: "simple struct",
 			args: args{
-				path: "./testdata/simple",
+				path: "./_testdata/simple",
 			},
 			want: &parse.Results{
 				Packages: map[string]*parse.PackageInfo{
@@ -93,7 +93,7 @@ func TestParser_ParseDirectory(t *testing.T) {
 		{
 			name: "permutations with multiple packages",
 			args: args{
-				path: "./testdata/permutation",
+				path: "./_testdata/permutation",
 			},
 			want: &parse.Results{
 				Packages: map[string]*parse.PackageInfo{
@@ -277,7 +277,7 @@ func TestParser_ParseDirectory(t *testing.T) {
 		{
 			name: "functions",
 			args: args{
-				path: "./testdata/functions",
+				path: "./_testdata/functions",
 			},
 			want: &parse.Results{
 				Packages: map[string]*parse.PackageInfo{
@@ -495,7 +495,7 @@ func TestParser_ParseDirectory(t *testing.T) {
 		{
 			name: "interfaces",
 			args: args{
-				path: "./testdata/interfaces",
+				path: "./_testdata/interfaces",
 			},
 			want: &parse.Results{
 				Packages: map[string]*parse.PackageInfo{
@@ -608,7 +608,7 @@ func TestParser_ParseDirectory(t *testing.T) {
 		{
 			name: "globals",
 			args: args{
-				path: "./testdata/globals",
+				path: "./_testdata/globals",
 			},
 			want: &parse.Results{
 				Packages: map[string]*parse.PackageInfo{
@@ -681,7 +681,7 @@ func TestParser_ParseDirectory(t *testing.T) {
 		{
 			name: "embedded",
 			args: args{
-				path: "./testdata/embedded",
+				path: "./_testdata/embedded",
 			},
 			want: &parse.Results{
 				Packages: map[string]*parse.PackageInfo{
@@ -772,7 +772,7 @@ func TestParser_ParseDirectory(t *testing.T) {
 		{
 			name: "typing",
 			args: args{
-				path: "./testdata/typing",
+				path: "./_testdata/typing",
 			},
 			want: &parse.Results{
 				Packages: map[string]*parse.PackageInfo{

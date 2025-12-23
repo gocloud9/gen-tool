@@ -35,7 +35,7 @@ import (
 	"github.com/gocloud9/gen-tool/pkg/parse"
 )
 
-//go:embed testdata/templates/*.tmpl
+//go:embed _testdata/templates/*.tmpl
 var templatesFS embed.FS
 
 func main() {
@@ -50,22 +50,22 @@ func main() {
 		Files: generate.Files{
 			{
 				DestinationPath: "gen/fields/{{.Package.Name}}_{{.Struct.Name | lower}}_{{.StructField.Name | lower}}.go",
-				TemplatePath:    "testdata/templates/field_template.tmpl",
+				TemplatePath:    "_testdata/templates/field_template.tmpl",
 				Type:            generate.PerStructField,
 			},
 			{
 				DestinationPath: "gen/structs/{{.Package.Name}}_{{.Struct.Name | lower}}.go",
-				TemplatePath:    "testdata/templates/struct_template.tmpl",
+				TemplatePath:    "_testdata/templates/struct_template.tmpl",
 				Type:            generate.PerStruct,
 			},
 			{
 				DestinationPath: "gen/packages/{{.Package.Name}}.go",
-				TemplatePath:    "testdata/templates/package_template.tmpl",
+				TemplatePath:    "_testdata/templates/package_template.tmpl",
 				Type:            generate.PerPackage,
 			},
 			{
 				DestinationPath: "gen/global/global.go",
-				TemplatePath:    "testdata/templates/global_template.tmpl",
+				TemplatePath:    "_testdata/templates/global_template.tmpl",
 				Type:            generate.Global,
 			},
 		},

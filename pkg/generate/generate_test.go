@@ -45,23 +45,23 @@ func TestExecute(t *testing.T) {
 			},
 			Files: generate.Files{
 				{
-					DestinationPath: "gen/fields/{{.Package.Name}}_{{.Struct.Name|lower}}_{{.StructField.Name|lower}}.go",
-					TemplatePath:    "testdata/templates/field_template.tmpl",
+					DestinationPath: "_testdata/expected/fields/{{.Package.Name}}_{{.Struct.Name|lower}}_{{.StructField.Name|lower}}.go",
+					TemplatePath:    "_testdata/templates/field_template.tmpl",
 					Type:            generate.PerStructField,
 				},
 				{
-					DestinationPath: "gen/structs/{{.Package.Name}}_{{.Struct.Name|lower}}.go",
-					TemplatePath:    "testdata/templates/struct_template.tmpl",
+					DestinationPath: "_testdata/expected/structs/{{.Package.Name}}_{{.Struct.Name|lower}}.go",
+					TemplatePath:    "_testdata/templates/struct_template.tmpl",
 					Type:            generate.PerStruct,
 				},
 				{
-					DestinationPath: "gen/packages/{{.Package.Name}}.go",
-					TemplatePath:    "testdata/templates/package_template.tmpl",
+					DestinationPath: "_testdata/expected/packages/{{.Package.Name}}.go",
+					TemplatePath:    "_testdata/templates/package_template.tmpl",
 					Type:            generate.PerPackage,
 				},
 				{
-					DestinationPath: "gen/global/global.go",
-					TemplatePath:    "testdata/templates/global_template.tmpl",
+					DestinationPath: "_testdata/expected/global/global.go",
+					TemplatePath:    "_testdata/templates/global_template.tmpl",
 					Type:            generate.Global,
 				},
 			},

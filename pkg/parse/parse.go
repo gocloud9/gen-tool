@@ -1,26 +1,588 @@
 package parse
 
 import (
+	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
+	"golang.org/x/tools/go/packages"
+	"log"
+	"reflect"
+	"strings"
 )
 
-// ParseFile parses a Go source file and returns the AST.
-func ParseFile(filename string, src interface{}) (*ast.File, *token.FileSet, error) {
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, filename, src, parser.ParseComments)
-	if err != nil {
-		return nil, nil, err
-	}
-	return file, fset, nil
+type PackageInfo struct {
+	Name         string
+	Structs      map[string]*StructInfo
+	Constants    map[string]*ConstantInfo
+	Functions    map[string]*FuncInfo
+	Interfaces   map[string]*InterfaceInfo
+	Vars         map[string]*VarInfo
+	DefinedTypes map[string]*DefinedTypeInfo
+	Aliases      map[string]*AliasTypeInfo
 }
 
-// ParseDir parses all Go source files in a directory and returns a map of packages.
-func ParseDir(fset *token.FileSet, path string) (map[string]*ast.Package, error) {
-	pkgs, err := parser.ParseDir(fset, path, nil, parser.ParseComments)
-	if err != nil {
-		return nil, err
+type DefinedTypeInfo struct {
+	Name    string
+	Markers map[string]string
+	*TypeInfo
+}
+
+type AliasTypeInfo struct {
+	Name    string
+	Markers map[string]string
+	*TypeInfo
+}
+
+type ConstantInfo struct {
+	Name     string
+	TypeName string
+	Markers  map[string]string
+	Value    string
+}
+
+type VarInfo struct {
+	Name    string
+	Markers map[string]string
+	*TypeInfo
+}
+
+type TypeInfo struct {
+	TypeName    string
+	IsPointer   bool
+	IsMap       bool
+	IsSlice     bool
+	IsStruct    bool
+	IsChan      bool
+	IsFunc      bool
+	IsInterface bool
+	IsEllipsis  bool
+	MapKey      *TypeInfo
+	MapValue    *TypeInfo
+	Slice       *TypeInfo
+	Chan        *TypeInfo
+	Func        *FuncDefInfo
+	Interface   *InterfaceInfo
+	Pointer     *TypeInfo
+	Ellipsis    *TypeInfo
+}
+type FieldInfo struct {
+	Name    string
+	Markers map[string]string
+	Tags    map[string][]string
+	*TypeInfo
+}
+
+type InterfaceInfo struct {
+	Name          string
+	Markers       map[string]string
+	Methods       map[string]*FuncInfo
+	EmbeddedTypes map[string]*EmbeddedTypeInfo
+}
+
+type FuncDefInfo struct {
+	IsVariadic bool
+	IsReceiver bool
+	Receiver   string
+	Params     []*ParamInfo
+	Results    []*ResultInfo
+}
+
+type FuncInfo struct {
+	Name        string
+	Markers     map[string]string
+	HasReciver  bool
+	ReciverName string
+	*FuncDefInfo
+}
+
+type ParamInfo struct {
+	*TypeInfo
+	Name       string
+	IsVariadic bool
+}
+
+type ResultInfo struct {
+	*TypeInfo
+	Name string
+}
+
+type EmbeddedFieldInfo struct {
+	Name     string
+	TypeName string
+	Markers  map[string]string
+	Tags     map[string][]string
+}
+
+type EmbeddedTypeInfo struct {
+	Name     string
+	TypeName string
+	Markers  map[string]string
+}
+
+type StructInfo struct {
+	Name           string
+	Markers        map[string]string
+	Fields         map[string]*FieldInfo
+	Methods        map[string]*FuncInfo
+	EmbeddedFields map[string]EmbeddedFieldInfo
+}
+
+type Results struct {
+	Packages map[string]*PackageInfo
+}
+
+type Parser struct {
+}
+
+func exprToTypeInfo(e ast.Expr) *TypeInfo {
+	varInfo := &TypeInfo{}
+
+	switch expr := e.(type) {
+	case *ast.MapType:
+		varInfo.IsMap = true
+		varInfo.MapKey = exprToTypeInfo(expr.Key)
+		varInfo.MapValue = exprToTypeInfo(expr.Value)
+		varInfo.TypeName = fmt.Sprintf("map[%s]%s", varInfo.MapKey.TypeName, varInfo.MapValue.TypeName)
+	case *ast.SliceExpr:
+		varInfo.IsSlice = true
+		varInfo.Slice = exprToTypeInfo(expr.X)
+		varInfo.TypeName = "[]" + varInfo.Slice.TypeName
+	case *ast.StarExpr:
+		varInfo.IsPointer = true
+		varInfo.Pointer = exprToTypeInfo(expr.X)
+		varInfo.TypeName = "*" + varInfo.Pointer.TypeName
+	case *ast.ArrayType:
+		varInfo.IsSlice = true
+		varInfo.Slice = exprToTypeInfo(expr.Elt)
+		varInfo.TypeName = "[]" + varInfo.Slice.TypeName
+	case *ast.ChanType:
+		varInfo.IsChan = true
+		varInfo.Chan = exprToTypeInfo(expr.Value)
+		varInfo.TypeName = "chan " + varInfo.Chan.TypeName
+	case *ast.StructType:
+		varInfo.IsStruct = true
+	case *ast.InterfaceType:
+		varInfo.IsInterface = true
+	case *ast.Ellipsis:
+		varInfo.IsEllipsis = true
+		varInfo.Ellipsis = exprToTypeInfo(expr.Elt)
+		varInfo.TypeName = "..." + varInfo.Ellipsis.TypeName
+	case *ast.FuncType:
+		varInfo.IsFunc = true
+		params := fieldListToParamInfoList(expr.Params)
+		results := fieldListToResultInfoList(expr.Results)
+
+		varInfo.TypeName = funcTypeNameFromParamsAndResults(params, results)
+
+		varInfo.Func = &FuncDefInfo{
+			IsVariadic: isVariadicFunc(params),
+			Params:     params,
+			Results:    results,
+		}
+
+	case *ast.Ident:
+		if expr.Obj != nil && expr.Obj.Decl != nil {
+			switch s := expr.Obj.Decl.(type) {
+			case *ast.TypeSpec:
+				varInfo = exprToTypeInfo(s.Type)
+				varInfo.TypeName = s.Name.Name
+
+			case *ast.Field:
+				varInfo = exprToTypeInfo(s.Type)
+			}
+		}
+		if expr.Obj == nil {
+			varInfo.TypeName = expr.Name
+		}
 	}
-	return pkgs, nil
+
+	return varInfo
+}
+
+func handleValueSpec(node *ast.ValueSpec, pi *PackageInfo, commandGroupsByLastLine map[token.Pos]*ast.CommentGroup) {
+	if len(node.Names) != 1 {
+		return
+	}
+	name := node.Names[0]
+
+	for _, val := range node.Values {
+		switch v := val.(type) {
+		case *ast.BasicLit:
+			vs := name.Obj.Decl.(*ast.ValueSpec)
+			if name.Obj.Kind == ast.Con {
+				typeName := strings.ToLower(v.Kind.String())
+				vsType, ok := vs.Type.(*ast.Ident)
+				if ok && vsType != nil && vsType.Name != "" {
+					typeName = vsType.Name
+				}
+				pi.Constants[name.Obj.Name] = &ConstantInfo{
+					Name:     name.Obj.Name,
+					TypeName: typeName,
+					Markers:  markerValues(vs.Doc),
+					Value:    v.Value,
+				}
+			} else {
+				pi.Vars[name.Obj.Name] = &VarInfo{
+					Name:     name.Obj.Name,
+					Markers:  markerValues(vs.Doc),
+					TypeInfo: exprToTypeInfo(v),
+				}
+			}
+
+		case *ast.FuncLit:
+			doc, foundDoc := commandGroupsByLastLine[node.Pos()-5] // Magic number to get comment group before type name
+			if foundDoc && node.Doc == nil {
+				node.Doc = doc
+			}
+			params := fieldListToParamInfoList(v.Type.Params)
+			results := fieldListToResultInfoList(v.Type.Results)
+
+			pi.Vars[name.Obj.Name] = &VarInfo{
+				Name:    name.Obj.Name,
+				Markers: markerValues(node.Doc),
+				TypeInfo: &TypeInfo{
+					TypeName: funcTypeNameFromParamsAndResults(params, results),
+					IsFunc:   true,
+					Func: &FuncDefInfo{
+						IsVariadic: isVariadicFunc(params),
+						Params:     params,
+						Results:    results,
+					},
+				},
+			}
+		}
+	}
+}
+
+func funcTypeNameFromParamsAndResults(params []*ParamInfo, results []*ResultInfo) string {
+	paramTypes := []string{}
+	for _, p := range params {
+		paramTypes = append(paramTypes, p.TypeName)
+	}
+	resultTypes := []string{}
+	for _, r := range results {
+		resultTypes = append(resultTypes, r.TypeName)
+	}
+
+	resultsPrefix := ""
+	if len(resultTypes) == 1 {
+		resultsPrefix = " "
+	} else if len(resultTypes) > 1 {
+		resultsPrefix = " ("
+	}
+	resultsSuffix := ""
+	if len(resultTypes) > 1 {
+		resultsSuffix = ")"
+	}
+
+	return fmt.Sprintf("func(%s)%s%s%s", strings.Join(paramTypes, ", "), resultsPrefix, strings.Join(resultTypes, ", "), resultsSuffix)
+}
+
+func handleFuncDecl(node *ast.FuncDecl, pi *PackageInfo, line map[token.Pos]*ast.CommentGroup) {
+	params := fieldListToParamInfoList(node.Type.Params)
+	results := fieldListToResultInfoList(node.Type.Results)
+
+	receiverTypeName := ""
+	if node.Recv != nil && len(node.Recv.List) > 0 {
+		receiverType, ok := node.Recv.List[0].Type.(*ast.Ident)
+		if ok {
+			receiverTypeName = receiverType.Name
+		}
+	}
+
+	pi.Functions[node.Name.Name] = &FuncInfo{
+		Name:        node.Name.Name,
+		HasReciver:  receiverTypeName != "",
+		ReciverName: receiverTypeName,
+
+		Markers: markerValues(node.Doc),
+		FuncDefInfo: &FuncDefInfo{
+			IsVariadic: isVariadicFunc(params),
+			Params:     params,
+			Results:    results,
+		},
+	}
+
+	for i := range pi.Structs {
+		if receiverTypeName == pi.Structs[i].Name {
+			pi.Structs[i].Methods[node.Name.Name] = pi.Functions[node.Name.Name]
+		}
+	}
+}
+
+func (p *Parser) ParseDirectory(path string) (*Results, error) {
+	results := &Results{
+		Packages: map[string]*PackageInfo{},
+	}
+
+	cfg := &packages.Config{
+		Mode: packages.NeedSyntax | packages.NeedTypes | packages.NeedDeps | packages.NeedFiles | packages.NeedName |
+			packages.NeedTypesInfo | packages.NeedModule | packages.NeedEmbedFiles | packages.NeedEmbedPatterns |
+			packages.NeedTarget | packages.NeedCompiledGoFiles | packages.NeedExportFile | packages.NeedImports |
+			packages.NeedForTest,
+		Dir: path,
+	}
+
+	pkgs, err := packages.Load(cfg, "./...")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, pkg := range pkgs {
+		pi := &PackageInfo{
+			Name:         pkg.Name,
+			Structs:      map[string]*StructInfo{},
+			Functions:    map[string]*FuncInfo{},
+			Interfaces:   map[string]*InterfaceInfo{},
+			Vars:         map[string]*VarInfo{},
+			Constants:    map[string]*ConstantInfo{},
+			DefinedTypes: map[string]*DefinedTypeInfo{},
+			Aliases:      map[string]*AliasTypeInfo{},
+		}
+		for _, file := range pkg.Syntax {
+			commandGroupsByLastLine := map[token.Pos]*ast.CommentGroup{}
+			ast.Inspect(file, func(n ast.Node) bool {
+				switch node := n.(type) {
+				case *ast.ValueSpec:
+					handleValueSpec(node, pi, commandGroupsByLastLine)
+				case *ast.FuncDecl:
+					handleFuncDecl(node, pi, commandGroupsByLastLine)
+				case *ast.CommentGroup:
+					commandGroupsByLastLine[node.End()] = node
+				case *ast.TypeSpec:
+					handleTypeSpec(node, pi, commandGroupsByLastLine)
+
+				default:
+				}
+
+				return true
+			})
+		}
+		results.Packages[pi.Name] = pi
+	}
+
+	return results, err
+}
+
+func handleInterfaceType(ts *ast.TypeSpec, node *ast.InterfaceType, pi *PackageInfo, commandGroupsByLastLine map[token.Pos]*ast.CommentGroup) {
+	doc, foundDoc := commandGroupsByLastLine[ts.Name.Pos()-6] // Magic number to get comment group before type name
+	if foundDoc && ts.Doc == nil {
+		ts.Doc = doc
+	}
+
+	ii := &InterfaceInfo{
+		Name:          ts.Name.Name,
+		Markers:       markerValues(ts.Doc),
+		Methods:       map[string]*FuncInfo{},
+		EmbeddedTypes: map[string]*EmbeddedTypeInfo{},
+	}
+	for i, m := range node.Methods.List {
+		if len(node.Methods.List[i].Names) == 0 {
+			eti := &EmbeddedTypeInfo{
+				Name:     m.Type.(*ast.Ident).Name,
+				TypeName: m.Type.(*ast.Ident).Name,
+				Markers:  markerValues(m.Doc),
+			}
+
+			ii.EmbeddedTypes[eti.TypeName] = eti
+		} else {
+			params := fieldListToParamInfoList(m.Type.(*ast.FuncType).Params)
+			results := fieldListToResultInfoList(m.Type.(*ast.FuncType).Results)
+
+			funcName := node.Methods.List[i].Names[0].Name
+			ii.Methods[funcName] = &FuncInfo{
+				Name:    funcName,
+				Markers: markerValues(node.Methods.List[i].Doc),
+
+				FuncDefInfo: &FuncDefInfo{
+					IsVariadic: isVariadicFunc(params),
+					Params:     params,
+					Results:    results,
+				},
+			}
+		}
+	}
+
+	pi.Interfaces[ii.Name] = ii
+}
+
+func isVariadicFunc(params []*ParamInfo) bool {
+	if len(params) == 0 {
+		return false
+	}
+
+	lastParam := params[len(params)-1]
+	return lastParam.IsEllipsis
+}
+
+func fieldListToParamInfoList(params *ast.FieldList) []*ParamInfo {
+	ps := []*ParamInfo{}
+
+	if params == nil {
+		return ps
+	}
+
+	for _, param := range params.List {
+		for _, paramNameProperties := range param.Names {
+			ps = append(ps, &ParamInfo{
+				Name:       paramNameProperties.Name,
+				TypeInfo:   exprToTypeInfo(paramNameProperties),
+				IsVariadic: false,
+			})
+		}
+		if param.Type != nil && len(param.Names) == 0 {
+			ps = append(ps, &ParamInfo{
+				TypeInfo: exprToTypeInfo(param.Type),
+			})
+		}
+	}
+
+	return ps
+}
+
+func fieldListToResultInfoList(results *ast.FieldList) []*ResultInfo {
+	rs := []*ResultInfo{}
+
+	if results == nil {
+		return rs
+	}
+
+	for _, result := range results.List {
+		for _, paramNameProperties := range result.Names {
+			rs = append(rs, &ResultInfo{
+				Name:     paramNameProperties.Name,
+				TypeInfo: exprToTypeInfo(paramNameProperties),
+			})
+		}
+		if result.Type != nil && len(result.Names) == 0 {
+			rs = append(rs, &ResultInfo{
+				TypeInfo: exprToTypeInfo(result.Type),
+			})
+		}
+	}
+
+	return rs
+}
+
+func handleTypeSpec(ts *ast.TypeSpec, pi *PackageInfo, commandGroupsByLastLine map[token.Pos]*ast.CommentGroup) {
+	switch t := ts.Type.(type) {
+	case *ast.StructType:
+		handleStructType(ts, t, pi, commandGroupsByLastLine)
+	case *ast.InterfaceType:
+		handleInterfaceType(ts, t, pi, commandGroupsByLastLine)
+	default:
+		if ts.Doc == nil {
+			ts.Doc, _ = commandGroupsByLastLine[ts.Pos()-6] // Magic number to get comment group before type name
+		}
+
+		if ts.Assign == token.NoPos {
+			dti := &DefinedTypeInfo{
+				Name:     ts.Name.Name,
+				Markers:  markerValues(ts.Doc),
+				TypeInfo: exprToTypeInfo(t),
+			}
+
+			pi.DefinedTypes[dti.Name] = dti
+		} else {
+			ati := &AliasTypeInfo{
+				Name:     ts.Name.Name,
+				Markers:  markerValues(ts.Doc),
+				TypeInfo: exprToTypeInfo(t),
+			}
+
+			pi.Aliases[ati.Name] = ati
+		}
+
+	}
+}
+
+func handleStructType(t *ast.TypeSpec, s *ast.StructType, pi *PackageInfo, commandGroupsByLastLine map[token.Pos]*ast.CommentGroup) {
+	si := &StructInfo{
+		Name: t.Name.Name,
+	}
+
+	doc, foundDoc := commandGroupsByLastLine[t.Name.Pos()-6] // Magic number to get comment group before type name
+	if foundDoc && t.Doc == nil {
+		t.Doc = doc
+	}
+
+	si.Markers = markerValues(t.Doc)
+	si.Fields = map[string]*FieldInfo{}
+	si.Methods = map[string]*FuncInfo{}
+	si.EmbeddedFields = map[string]EmbeddedFieldInfo{}
+
+	for _, f := range s.Fields.List {
+		if len(f.Names) == 0 {
+			efi := EmbeddedFieldInfo{
+				Name:     f.Type.(*ast.Ident).Name,
+				TypeName: f.Type.(*ast.Ident).Name,
+				Markers:  markerValues(f.Doc),
+				Tags:     parseTags(f.Tag),
+			}
+
+			si.EmbeddedFields[efi.TypeName] = efi
+		} else {
+			fi := &FieldInfo{
+				Name:     f.Names[0].Name,
+				TypeInfo: exprToTypeInfo(f.Type),
+				Tags:     parseTags(f.Tag),
+			}
+
+			si.Fields[fi.Name] = fi
+		}
+	}
+
+	for i := range pi.Functions {
+		if pi.Functions[i].HasReciver && pi.Functions[i].ReciverName == si.Name {
+
+			si.Methods[pi.Functions[i].Name] = pi.Functions[i]
+		}
+	}
+
+	pi.Structs[si.Name] = si
+}
+
+func parseTags(tagLit *ast.BasicLit) map[string][]string {
+	if tagLit == nil || tagLit.Kind != token.STRING {
+		return map[string][]string{}
+	}
+
+	tags := map[string][]string{}
+
+	raw := strings.ReplaceAll(tagLit.Value, "`", "")
+	tagGroups := strings.Split(raw, " ")
+	for _, group := range tagGroups {
+		parts := strings.SplitN(group, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		tags[parts[0]] = strings.Split(strings.ReplaceAll(parts[1], "\"", ""), ",")
+	}
+
+	_ = reflect.StructTag(raw)
+
+	return tags
+}
+
+func markerValues(cg *ast.CommentGroup) map[string]string {
+	if cg == nil {
+		return map[string]string{}
+	}
+
+	values := map[string]string{}
+
+	for _, c := range cg.List {
+		txt := strings.TrimSpace(strings.TrimPrefix(c.Text, "//"))
+		txt = strings.TrimSpace(strings.TrimPrefix(txt, "/*"))
+		txt = strings.TrimSpace(strings.TrimSuffix(txt, "*/"))
+		parts := strings.SplitN(txt, "=", 2)
+		if len(parts) == 2 {
+			values[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		} else {
+			values[strings.TrimSpace(parts[0])] = ""
+		}
+
+	}
+
+	return values
 }

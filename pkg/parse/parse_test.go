@@ -3,6 +3,8 @@ package parse_test
 import (
 	"github.com/gocloud9/gen-tool/pkg/parse"
 	"github.com/google/go-cmp/cmp"
+	"os"
+	"path/filepath"
 
 	"testing"
 )
@@ -838,13 +840,19 @@ func TestParser_ParseDirectory(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &parse.Parser{}
-			got, err := p.ParseDirectory(tt.args.path)
+			wd, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("failed to get working directory: %v", err)
+			}
+
+			path := filepath.Join(wd, tt.args.path)
+
+			got, err := p.ParseDirectory(path)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseDirectory() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			// If a strict expected result is provided, compare deeply.
 			if tt.want != nil {
 				if diff := cmp.Diff(tt.want, got); diff != "" {
 					t.Errorf("mismatch (-want +got):\n%s", diff)
@@ -852,12 +860,4 @@ func TestParser_ParseDirectory(t *testing.T) {
 			}
 		})
 	}
-}
-
-func keysOf(m map[string]*parse.PackageInfo) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
 }

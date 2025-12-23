@@ -14,6 +14,7 @@ import (
 type File struct {
 	DestinationPath string
 	TemplatePath    string
+	FormatSource    bool
 	Type            Type
 }
 
@@ -49,9 +50,14 @@ func (d File) Generate(input interface{}, funcMap template.FuncMap, fs ...embed.
 		log.Fatalf("error executing template: %v", err)
 	}
 
-	src, err := format.Source(buf.Bytes())
-	if err != nil {
-		return err
+	var src []byte
+	if d.FormatSource {
+		src, err = format.Source(buf.Bytes())
+		if err != nil {
+			return err
+		}
+	} else {
+		src = buf.Bytes()
 	}
 
 	var bufDestPath bytes.Buffer

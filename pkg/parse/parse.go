@@ -64,6 +64,7 @@ type TypeInfo struct {
 	IsFunc       bool
 	IsInterface  bool
 	IsEllipsis   bool
+	IsImported   bool
 	MapKey       *TypeInfo
 	MapValue     *TypeInfo
 	Slice        *TypeInfo
@@ -195,6 +196,7 @@ func exprToTypeInfo(e ast.Expr, fileCache fileCachedData) *TypeInfo {
 		if ok {
 			packagePath := strings.ReplaceAll(imported.Path.Value, "\"", "")
 			parts := strings.Split(packagePath, "/")
+			varInfo.IsImported = true
 			varInfo.ImportedType = &ImportedTypeInfo{
 				TypeName:            varInfo.TypeName,
 				ImportRaw:           imported.Path.Value,

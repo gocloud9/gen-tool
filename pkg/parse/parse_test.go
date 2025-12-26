@@ -142,7 +142,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 										Markers: map[string]string{},
 										Tags:    map[string][]string{"json": {"duration"}},
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "time.Duration",
+											TypeName:   "time.Duration",
+											IsImported: true,
 											ImportedType: &parse.ImportedTypeInfo{
 												TypeName:            "Duration",
 												ImportRaw:           "\"time\"",
@@ -166,7 +167,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 										Markers: map[string]string{},
 										Tags:    map[string][]string{"json": {"time"}},
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "time.Time",
+											TypeName:   "time.Time",
+											IsImported: true,
 											ImportedType: &parse.ImportedTypeInfo{
 												TypeName:            "Time",
 												ImportRaw:           "\"time\"",
@@ -180,7 +182,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 										Markers: map[string]string{},
 										Tags:    map[string][]string{"json": {"timestamp"}},
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "timestamppb.Timestamp",
+											TypeName:   "timestamppb.Timestamp",
+											IsImported: true,
 											ImportedType: &parse.ImportedTypeInfo{
 												TypeName:            "Timestamp",
 												ImportRaw:           "\"google.golang.org/protobuf/types/known/timestamppb\"",

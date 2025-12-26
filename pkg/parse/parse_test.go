@@ -137,6 +137,20 @@ func TestParser_ParseDirectory(t *testing.T) {
 										},
 										Markers: map[string]string{},
 									},
+									"Duration": {
+										Name:    "Duration",
+										Markers: map[string]string{},
+										Tags:    map[string][]string{"json": {"duration"}},
+										TypeInfo: &parse.TypeInfo{
+											TypeName: "time.Duration",
+											ImportedType: &parse.ImportedTypeInfo{
+												TypeName:            "Duration",
+												ImportRaw:           "\"time\"",
+												PackagePath:         "time",
+												PackageDefaultAlias: "time",
+											},
+										},
+									},
 									"Email": {
 										Name: "Email",
 										Tags: map[string][]string{
@@ -146,6 +160,34 @@ func TestParser_ParseDirectory(t *testing.T) {
 											TypeName: "string",
 										},
 										Markers: map[string]string{},
+									},
+									"Time": {
+										Name:    "Time",
+										Markers: map[string]string{},
+										Tags:    map[string][]string{"json": {"time"}},
+										TypeInfo: &parse.TypeInfo{
+											TypeName: "time.Time",
+											ImportedType: &parse.ImportedTypeInfo{
+												TypeName:            "Time",
+												ImportRaw:           "\"time\"",
+												PackagePath:         "time",
+												PackageDefaultAlias: "time",
+											},
+										},
+									},
+									"Timestamp": {
+										Name:    "Timestamp",
+										Markers: map[string]string{},
+										Tags:    map[string][]string{"json": {"timestamp"}},
+										TypeInfo: &parse.TypeInfo{
+											TypeName: "timestamppb.Timestamp",
+											ImportedType: &parse.ImportedTypeInfo{
+												TypeName:            "Timestamp",
+												ImportRaw:           "\"google.golang.org/protobuf/types/known/timestamppb\"",
+												PackagePath:         "google.golang.org/protobuf/types/known/timestamppb",
+												PackageDefaultAlias: "timestamppb",
+											},
+										},
 									},
 								},
 								EmbeddedFields: map[string]parse.EmbeddedFieldInfo{},
@@ -340,8 +382,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 									},
 								},
 							},
-							"Reference": {
-								Name: "Reference",
+							"ImportedTypeInfo": {
+								Name: "ImportedTypeInfo",
 								Markers: map[string]string{
 									"+Foo": "true",
 									"+Bar": "123",

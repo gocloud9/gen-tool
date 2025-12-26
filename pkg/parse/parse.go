@@ -46,24 +46,33 @@ type VarInfo struct {
 	*TypeInfo
 }
 
+type ImportedTypeInfo struct {
+	TypeName            string
+	ImportRaw           string
+	PackagePath         string
+	PackageDefaultAlias string
+}
+
 type TypeInfo struct {
-	TypeName    string
-	IsPointer   bool
-	IsMap       bool
-	IsSlice     bool
-	IsStruct    bool
-	IsChan      bool
-	IsFunc      bool
-	IsInterface bool
-	IsEllipsis  bool
-	MapKey      *TypeInfo
-	MapValue    *TypeInfo
-	Slice       *TypeInfo
-	Chan        *TypeInfo
-	Func        *FuncDefInfo
-	Interface   *InterfaceInfo
-	Pointer     *TypeInfo
-	Ellipsis    *TypeInfo
+	TypeName     string
+	PackageName  string
+	IsPointer    bool
+	IsMap        bool
+	IsSlice      bool
+	IsStruct     bool
+	IsChan       bool
+	IsFunc       bool
+	IsInterface  bool
+	IsEllipsis   bool
+	MapKey       *TypeInfo
+	MapValue     *TypeInfo
+	Slice        *TypeInfo
+	Chan         *TypeInfo
+	Func         *FuncDefInfo
+	Interface    *InterfaceInfo
+	Pointer      *TypeInfo
+	Ellipsis     *TypeInfo
+	ImportedType *ImportedTypeInfo
 }
 type FieldInfo struct {
 	Name    string
@@ -134,30 +143,30 @@ type Results struct {
 type Parser struct {
 }
 
-func exprToTypeInfo(e ast.Expr) *TypeInfo {
+func exprToTypeInfo(e ast.Expr, fileCache fileCachedData) *TypeInfo {
 	varInfo := &TypeInfo{}
 
 	switch expr := e.(type) {
 	case *ast.MapType:
 		varInfo.IsMap = true
-		varInfo.MapKey = exprToTypeInfo(expr.Key)
-		varInfo.MapValue = exprToTypeInfo(expr.Value)
+		varInfo.MapKey = exprToTypeInfo(expr.Key, fileCache)
+		varInfo.MapValue = exprToTypeInfo(expr.Value, fileCache)
 		varInfo.TypeName = fmt.Sprintf("map[%s]%s", varInfo.MapKey.TypeName, varInfo.MapValue.TypeName)
 	case *ast.SliceExpr:
 		varInfo.IsSlice = true
-		varInfo.Slice = exprToTypeInfo(expr.X)
+		varInfo.Slice = exprToTypeInfo(expr.X, fileCache)
 		varInfo.TypeName = "[]" + varInfo.Slice.TypeName
 	case *ast.StarExpr:
 		varInfo.IsPointer = true
-		varInfo.Pointer = exprToTypeInfo(expr.X)
+		varInfo.Pointer = exprToTypeInfo(expr.X, fileCache)
 		varInfo.TypeName = "*" + varInfo.Pointer.TypeName
 	case *ast.ArrayType:
 		varInfo.IsSlice = true
-		varInfo.Slice = exprToTypeInfo(expr.Elt)
+		varInfo.Slice = exprToTypeInfo(expr.Elt, fileCache)
 		varInfo.TypeName = "[]" + varInfo.Slice.TypeName
 	case *ast.ChanType:
 		varInfo.IsChan = true
-		varInfo.Chan = exprToTypeInfo(expr.Value)
+		varInfo.Chan = exprToTypeInfo(expr.Value, fileCache)
 		varInfo.TypeName = "chan " + varInfo.Chan.TypeName
 	case *ast.StructType:
 		varInfo.IsStruct = true
@@ -165,12 +174,12 @@ func exprToTypeInfo(e ast.Expr) *TypeInfo {
 		varInfo.IsInterface = true
 	case *ast.Ellipsis:
 		varInfo.IsEllipsis = true
-		varInfo.Ellipsis = exprToTypeInfo(expr.Elt)
+		varInfo.Ellipsis = exprToTypeInfo(expr.Elt, fileCache)
 		varInfo.TypeName = "..." + varInfo.Ellipsis.TypeName
 	case *ast.FuncType:
 		varInfo.IsFunc = true
-		params := fieldListToParamInfoList(expr.Params)
-		results := fieldListToResultInfoList(expr.Results)
+		params := fieldListToParamInfoList(expr.Params, fileCache)
+		results := fieldListToResultInfoList(expr.Results, fileCache)
 
 		varInfo.TypeName = funcTypeNameFromParamsAndResults(params, results)
 
@@ -180,15 +189,30 @@ func exprToTypeInfo(e ast.Expr) *TypeInfo {
 			Results:    results,
 		}
 
+	case *ast.SelectorExpr:
+		varInfo = exprToTypeInfo(expr.Sel, fileCache)
+		imported, ok := fileCache.imports[expr.X.(*ast.Ident).Name]
+		if ok {
+			packagePath := strings.ReplaceAll(imported.Path.Value, "\"", "")
+			parts := strings.Split(packagePath, "/")
+			varInfo.ImportedType = &ImportedTypeInfo{
+				TypeName:            varInfo.TypeName,
+				ImportRaw:           imported.Path.Value,
+				PackagePath:         packagePath,
+				PackageDefaultAlias: parts[len(parts)-1],
+			}
+			varInfo.TypeName = varInfo.ImportedType.PackageDefaultAlias + "." + varInfo.TypeName
+		}
+
 	case *ast.Ident:
 		if expr.Obj != nil && expr.Obj.Decl != nil {
 			switch s := expr.Obj.Decl.(type) {
 			case *ast.TypeSpec:
-				varInfo = exprToTypeInfo(s.Type)
+				varInfo = exprToTypeInfo(s.Type, fileCache)
 				varInfo.TypeName = s.Name.Name
 
 			case *ast.Field:
-				varInfo = exprToTypeInfo(s.Type)
+				varInfo = exprToTypeInfo(s.Type, fileCache)
 			}
 		}
 		if expr.Obj == nil {
@@ -199,7 +223,7 @@ func exprToTypeInfo(e ast.Expr) *TypeInfo {
 	return varInfo
 }
 
-func handleValueSpec(node *ast.ValueSpec, pi *PackageInfo, commandGroupsByLastLine map[token.Pos]*ast.CommentGroup) {
+func handleValueSpec(node *ast.ValueSpec, pi *PackageInfo, fileCache fileCachedData) {
 	if len(node.Names) != 1 {
 		return
 	}
@@ -225,17 +249,17 @@ func handleValueSpec(node *ast.ValueSpec, pi *PackageInfo, commandGroupsByLastLi
 				pi.Vars[name.Obj.Name] = &VarInfo{
 					Name:     name.Obj.Name,
 					Markers:  markerValues(vs.Doc),
-					TypeInfo: exprToTypeInfo(v),
+					TypeInfo: exprToTypeInfo(v, fileCache),
 				}
 			}
 
 		case *ast.FuncLit:
-			doc, foundDoc := commandGroupsByLastLine[node.Pos()-5] // Magic number to get comment group before type name
+			doc, foundDoc := fileCache.commentGroups[node.Pos()-5] // Magic number to get comment group before type name
 			if foundDoc && node.Doc == nil {
 				node.Doc = doc
 			}
-			params := fieldListToParamInfoList(v.Type.Params)
-			results := fieldListToResultInfoList(v.Type.Results)
+			params := fieldListToParamInfoList(v.Type.Params, fileCache)
+			results := fieldListToResultInfoList(v.Type.Results, fileCache)
 
 			pi.Vars[name.Obj.Name] = &VarInfo{
 				Name:    name.Obj.Name,
@@ -278,9 +302,9 @@ func funcTypeNameFromParamsAndResults(params []*ParamInfo, results []*ResultInfo
 	return fmt.Sprintf("func(%s)%s%s%s", strings.Join(paramTypes, ", "), resultsPrefix, strings.Join(resultTypes, ", "), resultsSuffix)
 }
 
-func handleFuncDecl(node *ast.FuncDecl, pi *PackageInfo, line map[token.Pos]*ast.CommentGroup) {
-	params := fieldListToParamInfoList(node.Type.Params)
-	results := fieldListToResultInfoList(node.Type.Results)
+func handleFuncDecl(node *ast.FuncDecl, pi *PackageInfo, fileCache fileCachedData) {
+	params := fieldListToParamInfoList(node.Type.Params, fileCache)
+	results := fieldListToResultInfoList(node.Type.Results, fileCache)
 
 	receiverTypeName := ""
 	if node.Recv != nil && len(node.Recv.List) > 0 {
@@ -308,6 +332,11 @@ func handleFuncDecl(node *ast.FuncDecl, pi *PackageInfo, line map[token.Pos]*ast
 			pi.Structs[i].Methods[node.Name.Name] = pi.Functions[node.Name.Name]
 		}
 	}
+}
+
+type fileCachedData struct {
+	commentGroups map[token.Pos]*ast.CommentGroup
+	imports       map[string]*ast.ImportSpec
 }
 
 func (p *Parser) ParseDirectory(path string) (*Results, error) {
@@ -340,17 +369,28 @@ func (p *Parser) ParseDirectory(path string) (*Results, error) {
 			Aliases:      map[string]*AliasTypeInfo{},
 		}
 		for _, file := range pkg.Syntax {
-			commandGroupsByLastLine := map[token.Pos]*ast.CommentGroup{}
+			fileCacheData := fileCachedData{
+				commentGroups: map[token.Pos]*ast.CommentGroup{},
+				imports:       map[string]*ast.ImportSpec{},
+			}
+
 			ast.Inspect(file, func(n ast.Node) bool {
 				switch node := n.(type) {
 				case *ast.ValueSpec:
-					handleValueSpec(node, pi, commandGroupsByLastLine)
+					handleValueSpec(node, pi, fileCacheData)
 				case *ast.FuncDecl:
-					handleFuncDecl(node, pi, commandGroupsByLastLine)
+					handleFuncDecl(node, pi, fileCacheData)
 				case *ast.CommentGroup:
-					commandGroupsByLastLine[node.End()] = node
+					fileCacheData.commentGroups[node.End()] = node
+				case *ast.ImportSpec:
+					if node.Name == nil {
+						fileCacheData.imports[strings.ReplaceAll(node.Path.Value, "\"", "")] = node
+					} else {
+						fileCacheData.imports[node.Name.Name] = node
+					}
+
 				case *ast.TypeSpec:
-					handleTypeSpec(node, pi, commandGroupsByLastLine)
+					handleTypeSpec(node, pi, fileCacheData)
 
 				default:
 				}
@@ -364,8 +404,8 @@ func (p *Parser) ParseDirectory(path string) (*Results, error) {
 	return results, err
 }
 
-func handleInterfaceType(ts *ast.TypeSpec, node *ast.InterfaceType, pi *PackageInfo, commandGroupsByLastLine map[token.Pos]*ast.CommentGroup) {
-	doc, foundDoc := commandGroupsByLastLine[ts.Name.Pos()-6] // Magic number to get comment group before type name
+func handleInterfaceType(ts *ast.TypeSpec, node *ast.InterfaceType, pi *PackageInfo, fileCache fileCachedData) {
+	doc, foundDoc := fileCache.commentGroups[ts.Name.Pos()-6] // Magic number to get comment group before type name
 	if foundDoc && ts.Doc == nil {
 		ts.Doc = doc
 	}
@@ -386,8 +426,8 @@ func handleInterfaceType(ts *ast.TypeSpec, node *ast.InterfaceType, pi *PackageI
 
 			ii.EmbeddedTypes[eti.TypeName] = eti
 		} else {
-			params := fieldListToParamInfoList(m.Type.(*ast.FuncType).Params)
-			results := fieldListToResultInfoList(m.Type.(*ast.FuncType).Results)
+			params := fieldListToParamInfoList(m.Type.(*ast.FuncType).Params, fileCache)
+			results := fieldListToResultInfoList(m.Type.(*ast.FuncType).Results, fileCache)
 
 			funcName := node.Methods.List[i].Names[0].Name
 			ii.Methods[funcName] = &FuncInfo{
@@ -415,7 +455,7 @@ func isVariadicFunc(params []*ParamInfo) bool {
 	return lastParam.IsEllipsis
 }
 
-func fieldListToParamInfoList(params *ast.FieldList) []*ParamInfo {
+func fieldListToParamInfoList(params *ast.FieldList, fileCache fileCachedData) []*ParamInfo {
 	ps := []*ParamInfo{}
 
 	if params == nil {
@@ -426,13 +466,13 @@ func fieldListToParamInfoList(params *ast.FieldList) []*ParamInfo {
 		for _, paramNameProperties := range param.Names {
 			ps = append(ps, &ParamInfo{
 				Name:       paramNameProperties.Name,
-				TypeInfo:   exprToTypeInfo(paramNameProperties),
+				TypeInfo:   exprToTypeInfo(paramNameProperties, fileCache),
 				IsVariadic: false,
 			})
 		}
 		if param.Type != nil && len(param.Names) == 0 {
 			ps = append(ps, &ParamInfo{
-				TypeInfo: exprToTypeInfo(param.Type),
+				TypeInfo: exprToTypeInfo(param.Type, fileCache),
 			})
 		}
 	}
@@ -440,7 +480,7 @@ func fieldListToParamInfoList(params *ast.FieldList) []*ParamInfo {
 	return ps
 }
 
-func fieldListToResultInfoList(results *ast.FieldList) []*ResultInfo {
+func fieldListToResultInfoList(results *ast.FieldList, fileCache fileCachedData) []*ResultInfo {
 	rs := []*ResultInfo{}
 
 	if results == nil {
@@ -451,12 +491,12 @@ func fieldListToResultInfoList(results *ast.FieldList) []*ResultInfo {
 		for _, paramNameProperties := range result.Names {
 			rs = append(rs, &ResultInfo{
 				Name:     paramNameProperties.Name,
-				TypeInfo: exprToTypeInfo(paramNameProperties),
+				TypeInfo: exprToTypeInfo(paramNameProperties, fileCache),
 			})
 		}
 		if result.Type != nil && len(result.Names) == 0 {
 			rs = append(rs, &ResultInfo{
-				TypeInfo: exprToTypeInfo(result.Type),
+				TypeInfo: exprToTypeInfo(result.Type, fileCache),
 			})
 		}
 	}
@@ -464,22 +504,22 @@ func fieldListToResultInfoList(results *ast.FieldList) []*ResultInfo {
 	return rs
 }
 
-func handleTypeSpec(ts *ast.TypeSpec, pi *PackageInfo, commandGroupsByLastLine map[token.Pos]*ast.CommentGroup) {
+func handleTypeSpec(ts *ast.TypeSpec, pi *PackageInfo, fileCache fileCachedData) {
 	switch t := ts.Type.(type) {
 	case *ast.StructType:
-		handleStructType(ts, t, pi, commandGroupsByLastLine)
+		handleStructType(ts, t, pi, fileCache)
 	case *ast.InterfaceType:
-		handleInterfaceType(ts, t, pi, commandGroupsByLastLine)
+		handleInterfaceType(ts, t, pi, fileCache)
 	default:
 		if ts.Doc == nil {
-			ts.Doc, _ = commandGroupsByLastLine[ts.Pos()-6] // Magic number to get comment group before type name
+			ts.Doc, _ = fileCache.commentGroups[ts.Pos()-6] // Magic number to get comment group before type name
 		}
 
 		if ts.Assign == token.NoPos {
 			dti := &DefinedTypeInfo{
 				Name:     ts.Name.Name,
 				Markers:  markerValues(ts.Doc),
-				TypeInfo: exprToTypeInfo(t),
+				TypeInfo: exprToTypeInfo(t, fileCache),
 			}
 
 			pi.DefinedTypes[dti.Name] = dti
@@ -487,7 +527,7 @@ func handleTypeSpec(ts *ast.TypeSpec, pi *PackageInfo, commandGroupsByLastLine m
 			ati := &AliasTypeInfo{
 				Name:     ts.Name.Name,
 				Markers:  markerValues(ts.Doc),
-				TypeInfo: exprToTypeInfo(t),
+				TypeInfo: exprToTypeInfo(t, fileCache),
 			}
 
 			pi.Aliases[ati.Name] = ati
@@ -496,12 +536,12 @@ func handleTypeSpec(ts *ast.TypeSpec, pi *PackageInfo, commandGroupsByLastLine m
 	}
 }
 
-func handleStructType(t *ast.TypeSpec, s *ast.StructType, pi *PackageInfo, commandGroupsByLastLine map[token.Pos]*ast.CommentGroup) {
+func handleStructType(t *ast.TypeSpec, s *ast.StructType, pi *PackageInfo, fileCache fileCachedData) {
 	si := &StructInfo{
 		Name: t.Name.Name,
 	}
 
-	doc, foundDoc := commandGroupsByLastLine[t.Name.Pos()-6] // Magic number to get comment group before type name
+	doc, foundDoc := fileCache.commentGroups[t.Name.Pos()-6] // Magic number to get comment group before type name
 	if foundDoc && t.Doc == nil {
 		t.Doc = doc
 	}
@@ -513,7 +553,7 @@ func handleStructType(t *ast.TypeSpec, s *ast.StructType, pi *PackageInfo, comma
 
 	for _, f := range s.Fields.List {
 		if f.Doc == nil {
-			f.Doc, _ = commandGroupsByLastLine[f.Pos()]
+			f.Doc, _ = fileCache.commentGroups[f.Pos()]
 		}
 
 		if len(f.Names) == 0 {
@@ -528,7 +568,7 @@ func handleStructType(t *ast.TypeSpec, s *ast.StructType, pi *PackageInfo, comma
 		} else {
 			fi := &FieldInfo{
 				Name:     f.Names[0].Name,
-				TypeInfo: exprToTypeInfo(f.Type),
+				TypeInfo: exprToTypeInfo(f.Type, fileCache),
 				Tags:     parseTags(f.Tag),
 				Markers:  markerValues(f.Doc),
 			}

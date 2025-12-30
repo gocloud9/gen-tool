@@ -6,7 +6,7 @@ import (
 	"text/template"
 )
 
-type Input struct {
+type Input[T any] struct {
 	Results         *parse.Results
 	Package         *parse.PackageInfo
 	Struct          *parse.StructInfo
@@ -18,6 +18,7 @@ type Input struct {
 	Var             *parse.VarInfo
 	DefinedType     *parse.DefinedTypeInfo
 	Alias           *parse.AliasTypeInfo
+	Custom          T
 }
 
 type Options struct {
@@ -26,10 +27,26 @@ type Options struct {
 	TemplateFuncMap template.FuncMap
 }
 
+type OptionsWithCustom[T any] struct {
+	EmdedFS         []embed.FS // Optional embedded filesystem for templates
+	Files           Files
+	TemplateFuncMap template.FuncMap
+	CustomInput     T
+}
+
 func Execute(parseResults *parse.Results, opts Options) error {
+	return ExecuteWithCustom(parseResults, OptionsWithCustom[struct{}]{
+		EmdedFS:         opts.EmdedFS,
+		Files:           opts.Files,
+		TemplateFuncMap: opts.TemplateFuncMap,
+		CustomInput:     struct{}{},
+	})
+}
+
+func ExecuteWithCustom[T any](parseResults *parse.Results, opts OptionsWithCustom[T]) error {
 	errs := errorGroup{}
 
-	input := Input{
+	input := Input[T]{
 		Results:         parseResults,
 		Package:         &parse.PackageInfo{},
 		Struct:          &parse.StructInfo{},
@@ -40,6 +57,7 @@ func Execute(parseResults *parse.Results, opts Options) error {
 		Constant:        &parse.ConstantInfo{},
 		Var:             &parse.VarInfo{},
 		DefinedType:     &parse.DefinedTypeInfo{},
+		Custom:          opts.CustomInput,
 	}
 
 	errs.Add(opts.Files.Filter(Global).Generate(input, opts.TemplateFuncMap, opts.EmdedFS...))

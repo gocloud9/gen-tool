@@ -20,16 +20,20 @@ func TestExecute(t *testing.T) {
 							Name: "AStruct1",
 							Fields: map[string]*parse.FieldInfo{
 								"AField1": {
-									Name:     "AField1",
-									Markers:  map[string]string{"d": "e"},
-									TypeInfo: &parse.TypeInfo{},
-									Tags:     map[string][]string{"a": {"b", "c"}},
+									Name:    "AField1",
+									Markers: map[string]string{"d": "e"},
+									TypeInfo: &parse.TypeInfo{
+										TypeName: "string",
+									},
+									Tags: map[string][]string{"a": {"b", "c"}},
 								},
 								"AField2": {
-									Name:     "AField2",
-									Markers:  map[string]string{"i": "j"},
-									TypeInfo: &parse.TypeInfo{},
-									Tags:     map[string][]string{"f": {"g", "h"}},
+									Name:    "AField2",
+									Markers: map[string]string{"i": "j"},
+									TypeInfo: &parse.TypeInfo{
+										TypeName: "int",
+									},
+									Tags: map[string][]string{"f": {"g", "h"}},
 								},
 							},
 						},

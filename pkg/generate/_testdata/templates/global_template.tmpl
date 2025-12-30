@@ -1,1 +1,11 @@
 package main
+
+{{ range .Results.Packages -}}
+// Package {{.Name}}
+  {{- range .Structs}}
+// Struct {{.Name}}
+    {{ range .Fields }}
+var {{.Name}}Var {{.TypeName}}
+    {{ end }}
+  {{ end }}
+{{ end }}

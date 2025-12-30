@@ -7,6 +7,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"log"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -341,7 +342,12 @@ type fileCachedData struct {
 	imports       map[string]*ast.ImportSpec
 }
 
-func (p *Parser) ParseDirectory(path string) (*Results, error) {
+type Options struct {
+	Path                       string
+	SkipFilesWithContentsRegex []*regexp.Regexp
+}
+
+func (p *Parser) ParseDirectory(opts Options) (*Results, error) {
 	results := &Results{
 		Packages: map[string]*PackageInfo{},
 	}
@@ -351,7 +357,7 @@ func (p *Parser) ParseDirectory(path string) (*Results, error) {
 			packages.NeedTypesInfo | packages.NeedModule | packages.NeedEmbedFiles | packages.NeedEmbedPatterns |
 			packages.NeedTarget | packages.NeedCompiledGoFiles | packages.NeedExportFile | packages.NeedImports |
 			packages.NeedForTest,
-		Dir: path,
+		Dir: opts.Path,
 	}
 
 	pkgs, err := packages.Load(cfg, "./...")
@@ -374,6 +380,19 @@ func (p *Parser) ParseDirectory(path string) (*Results, error) {
 			fileCacheData := fileCachedData{
 				commentGroups: map[token.Pos]*ast.CommentGroup{},
 				imports:       map[string]*ast.ImportSpec{},
+			}
+
+			skipFile := false
+			for i := range file.Comments {
+				for j := range opts.SkipFilesWithContentsRegex {
+					if opts.SkipFilesWithContentsRegex[j].MatchString(file.Comments[i].Text()) {
+						skipFile = true
+						break
+					}
+				}
+			}
+			if skipFile {
+				continue
 			}
 
 			ast.Inspect(file, func(n ast.Node) bool {

@@ -5,13 +5,15 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"testing"
 )
 
 func TestParser_ParseDirectory(t *testing.T) {
 	type args struct {
-		path string
+		path      string
+		skipFiles []*regexp.Regexp
 	}
 	tests := []struct {
 		name    string
@@ -102,6 +104,9 @@ func TestParser_ParseDirectory(t *testing.T) {
 			name: "permutations with multiple packages",
 			args: args{
 				path: "./_testdata/permutation",
+				skipFiles: []*regexp.Regexp{
+					regexp.MustCompile(`Skipped file in permutation test`),
+				},
 			},
 			want: &parse.Results{
 				Packages: map[string]*parse.PackageInfo{
@@ -385,8 +390,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 									},
 								},
 							},
-							"ImportedTypeInfo": {
-								Name: "ImportedTypeInfo",
+							"Reference": {
+								Name: "Reference",
 								Markers: map[string]string{
 									"+Foo": "true",
 									"+Bar": "123",
@@ -911,7 +916,7 @@ func TestParser_ParseDirectory(t *testing.T) {
 
 			path := filepath.Join(wd, tt.args.path)
 
-			got, err := p.ParseDirectory(path)
+			got, err := p.ParseDirectory(parse.Options{Path: path, SkipFilesWithContentsRegex: tt.args.skipFiles})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseDirectory() error = %v, wantErr %v", err, tt.wantErr)
 				return

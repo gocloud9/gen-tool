@@ -50,7 +50,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 											"json": {"id"},
 										},
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "string",
+											TypeName:         "string",
+											ExternalTypeName: "string",
 										},
 										Markers: map[string]string{
 											"+something:id": "true",
@@ -62,10 +63,12 @@ func TestParser_ParseDirectory(t *testing.T) {
 											"json": {"display_name"},
 										},
 										TypeInfo: &parse.TypeInfo{
-											TypeName:  "*string",
-											IsPointer: true,
+											TypeName:         "*string",
+											ExternalTypeName: "*string",
+											IsPointer:        true,
 											Pointer: &parse.TypeInfo{
-												TypeName: "string",
+												TypeName:         "string",
+												ExternalTypeName: "string",
 											},
 										},
 										Markers: map[string]string{},
@@ -76,7 +79,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 											"json": {"email"},
 										},
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "string",
+											TypeName:         "string",
+											ExternalTypeName: "string",
 										},
 										Markers: map[string]string{},
 									},
@@ -86,7 +90,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 											"json": {"age"},
 										},
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "int",
+											TypeName:         "int",
+											ExternalTypeName: "int",
 										},
 										Markers: map[string]string{},
 									},
@@ -128,7 +133,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 											"json": {"id"},
 										},
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "string",
+											TypeName:         "string",
+											ExternalTypeName: "string",
 										},
 										Markers: map[string]string{"+ID": "true"},
 									},
@@ -138,7 +144,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 											"json": {"display_name"},
 										},
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "string",
+											TypeName:         "string",
+											ExternalTypeName: "string",
 										},
 										Markers: map[string]string{},
 									},
@@ -147,8 +154,9 @@ func TestParser_ParseDirectory(t *testing.T) {
 										Markers: map[string]string{},
 										Tags:    map[string][]string{"json": {"duration"}},
 										TypeInfo: &parse.TypeInfo{
-											TypeName:   "time.Duration",
-											IsImported: true,
+											TypeName:         "time.Duration",
+											ExternalTypeName: "time.Duration",
+											IsImported:       true,
 											ImportedType: &parse.ImportedTypeInfo{
 												TypeName:            "Duration",
 												ImportRaw:           "\"time\"",
@@ -163,7 +171,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 											"json": {"email"},
 										},
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "string",
+											TypeName:         "string",
+											ExternalTypeName: "string",
 										},
 										Markers: map[string]string{},
 									},
@@ -172,8 +181,9 @@ func TestParser_ParseDirectory(t *testing.T) {
 										Markers: map[string]string{},
 										Tags:    map[string][]string{"json": {"time"}},
 										TypeInfo: &parse.TypeInfo{
-											TypeName:   "time.Time",
-											IsImported: true,
+											TypeName:         "time.Time",
+											ExternalTypeName: "time.Time",
+											IsImported:       true,
 											ImportedType: &parse.ImportedTypeInfo{
 												TypeName:            "Time",
 												ImportRaw:           "\"time\"",
@@ -187,8 +197,9 @@ func TestParser_ParseDirectory(t *testing.T) {
 										Markers: map[string]string{},
 										Tags:    map[string][]string{"json": {"timestamp"}},
 										TypeInfo: &parse.TypeInfo{
-											TypeName:   "timestamppb.Timestamp",
-											IsImported: true,
+											TypeName:         "timestamppb.Timestamp",
+											ExternalTypeName: "timestamppb.Timestamp",
+											IsImported:       true,
 											ImportedType: &parse.ImportedTypeInfo{
 												TypeName:            "Timestamp",
 												ImportRaw:           "\"google.golang.org/protobuf/types/known/timestamppb\"",
@@ -219,7 +230,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 									"StringField": {
 										Name: "StringField",
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "string",
+											TypeName:         "string",
+											ExternalTypeName: "string",
 										},
 										Tags:    map[string][]string{"json": {"string_field"}, "yaml": {"stringField"}},
 										Markers: map[string]string{},
@@ -227,7 +239,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 									"IntField": {
 										Name: "IntField",
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "int",
+											TypeName:         "int",
+											ExternalTypeName: "int",
 										},
 										Tags:    map[string][]string{"json": {"int_field"}, "yaml": {"intField"}},
 										Markers: map[string]string{},
@@ -235,7 +248,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 									"BoolField": {
 										Name: "BoolField",
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "bool",
+											TypeName:         "bool",
+											ExternalTypeName: "bool",
 										},
 										Tags:    map[string][]string{"json": {"bool_field"}, "yaml": {"boolField"}},
 										Markers: map[string]string{},
@@ -243,10 +257,12 @@ func TestParser_ParseDirectory(t *testing.T) {
 									"ChanField": {
 										Name: "ChanField",
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "chan int",
-											IsChan:   true,
+											TypeName:         "chan int",
+											ExternalTypeName: "chan int",
+											IsChan:           true,
 											Chan: &parse.TypeInfo{
-												TypeName: "int",
+												TypeName:         "int",
+												ExternalTypeName: "int",
 											},
 										},
 										Tags:    map[string][]string{"json": {"chan_field"}, "yaml": {"chanField"}},
@@ -255,13 +271,16 @@ func TestParser_ParseDirectory(t *testing.T) {
 									"MapField": {
 										Name: "MapField",
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "map[string]int",
-											IsMap:    true,
+											TypeName:         "map[string]int",
+											ExternalTypeName: "map[string]int",
+											IsMap:            true,
 											MapKey: &parse.TypeInfo{
-												TypeName: "string",
+												TypeName:         "string",
+												ExternalTypeName: "string",
 											},
 											MapValue: &parse.TypeInfo{
-												TypeName: "int",
+												TypeName:         "int",
+												ExternalTypeName: "int",
 											},
 										},
 										Tags:    map[string][]string{"json": {"map_field"}, "yaml": {"mapField"}},
@@ -270,10 +289,12 @@ func TestParser_ParseDirectory(t *testing.T) {
 									"SliceField": {
 										Name: "SliceField",
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "[]int",
-											IsSlice:  true,
+											TypeName:         "[]int",
+											ExternalTypeName: "[]int",
+											IsSlice:          true,
 											Slice: &parse.TypeInfo{
-												TypeName: "int",
+												TypeName:         "int",
+												ExternalTypeName: "int",
 											},
 										},
 										Tags:    map[string][]string{"json": {"slice_field"}, "yaml": {"sliceField"}},
@@ -282,8 +303,9 @@ func TestParser_ParseDirectory(t *testing.T) {
 									"SubStructField": {
 										Name: "SubStructField",
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "SubStruct",
-											IsStruct: true,
+											TypeName:         "SubStruct",
+											ExternalTypeName: "package2.SubStruct",
+											IsStruct:         true,
 										},
 										Tags:    map[string][]string{"json": {"sub_struct_field"}, "yaml": {"subStructField"}},
 										Markers: map[string]string{},
@@ -291,14 +313,17 @@ func TestParser_ParseDirectory(t *testing.T) {
 									"SubStructMapField": {
 										Name: "SubStructMapField",
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "map[string]SubStruct",
-											IsMap:    true,
+											TypeName:         "map[string]SubStruct",
+											ExternalTypeName: "map[string]package2.SubStruct",
+											IsMap:            true,
 											MapKey: &parse.TypeInfo{
-												TypeName: "string",
+												TypeName:         "string",
+												ExternalTypeName: "string",
 											},
 											MapValue: &parse.TypeInfo{
-												TypeName: "SubStruct",
-												IsStruct: true,
+												TypeName:         "SubStruct",
+												ExternalTypeName: "package2.SubStruct",
+												IsStruct:         true,
 											},
 										},
 										Tags:    map[string][]string{"json": {"sub_struct_map_field"}, "yaml": {"subStructMapField"}},
@@ -307,11 +332,13 @@ func TestParser_ParseDirectory(t *testing.T) {
 									"SubStructSliceField": {
 										Name: "SubStructSliceField",
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "[]SubStruct",
-											IsSlice:  true,
+											TypeName:         "[]SubStruct",
+											ExternalTypeName: "[]package2.SubStruct",
+											IsSlice:          true,
 											Slice: &parse.TypeInfo{
-												TypeName: "SubStruct",
-												IsStruct: true,
+												TypeName:         "SubStruct",
+												ExternalTypeName: "package2.SubStruct",
+												IsStruct:         true,
 											},
 										},
 										Tags:    map[string][]string{"json": {"sub_struct_slice_field"}, "yaml": {"subStructSliceField"}},
@@ -326,7 +353,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 									"Something": {
 										Name: "Something",
 										TypeInfo: &parse.TypeInfo{
-											TypeName: "string",
+											TypeName:         "string",
+											ExternalTypeName: "string",
 										},
 										Tags:    map[string][]string{},
 										Markers: map[string]string{},
@@ -378,8 +406,9 @@ func TestParser_ParseDirectory(t *testing.T) {
 												{
 													Name: "arg",
 													TypeInfo: &parse.TypeInfo{
-														TypeName: "Field",
-														IsStruct: true,
+														TypeName:         "Field",
+														ExternalTypeName: "functions.Field",
+														IsStruct:         true,
 													},
 												},
 											},
@@ -410,8 +439,9 @@ func TestParser_ParseDirectory(t *testing.T) {
 									"+Bar": "123",
 								},
 								TypeInfo: &parse.TypeInfo{
-									TypeName: "func()",
-									IsFunc:   true,
+									TypeName:         "func()",
+									ExternalTypeName: "func()",
+									IsFunc:           true,
 									Func: &parse.FuncDefInfo{
 										Params:  []*parse.ParamInfo{},
 										Results: []*parse.ResultInfo{},
@@ -425,8 +455,9 @@ func TestParser_ParseDirectory(t *testing.T) {
 									"+Bar": "123",
 								},
 								TypeInfo: &parse.TypeInfo{
-									TypeName: "func()",
-									IsFunc:   true,
+									TypeName:         "func()",
+									ExternalTypeName: "func()",
+									IsFunc:           true,
 									Func: &parse.FuncDefInfo{
 										Params:  []*parse.ParamInfo{},
 										Results: []*parse.ResultInfo{},
@@ -453,7 +484,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 									Results: []*parse.ResultInfo{
 										{
 											TypeInfo: &parse.TypeInfo{
-												TypeName: "error",
+												TypeName:         "error",
+												ExternalTypeName: "error",
 											},
 										},
 									},
@@ -470,7 +502,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 										{
 											Name: "arg",
 											TypeInfo: &parse.TypeInfo{
-												TypeName: "string",
+												TypeName:         "string",
+												ExternalTypeName: "string",
 											},
 										},
 									},
@@ -488,8 +521,9 @@ func TestParser_ParseDirectory(t *testing.T) {
 										{
 											Name: "arg",
 											TypeInfo: &parse.TypeInfo{
-												TypeName: "Field",
-												IsStruct: true,
+												TypeName:         "Field",
+												ExternalTypeName: "functions.Field",
+												IsStruct:         true,
 											},
 										},
 									},
@@ -507,8 +541,9 @@ func TestParser_ParseDirectory(t *testing.T) {
 										{
 											Name: "arg",
 											TypeInfo: &parse.TypeInfo{
-												TypeName: "Field",
-												IsStruct: true,
+												TypeName:         "Field",
+												ExternalTypeName: "functions.Field",
+												IsStruct:         true,
 											},
 										},
 									},
@@ -528,8 +563,9 @@ func TestParser_ParseDirectory(t *testing.T) {
 										{
 											Name: "arg",
 											TypeInfo: &parse.TypeInfo{
-												TypeName: "Field",
-												IsStruct: true,
+												TypeName:         "Field",
+												ExternalTypeName: "functions.Field",
+												IsStruct:         true,
 											},
 										},
 									},
@@ -545,11 +581,13 @@ func TestParser_ParseDirectory(t *testing.T) {
 										{
 											Name: "vArg",
 											TypeInfo: &parse.TypeInfo{
-												TypeName:   "...Field",
-												IsEllipsis: true,
+												TypeName:         "...Field",
+												ExternalTypeName: "...functions.Field",
+												IsEllipsis:       true,
 												Ellipsis: &parse.TypeInfo{
-													TypeName: "Field",
-													IsStruct: true,
+													TypeName:         "Field",
+													ExternalTypeName: "functions.Field",
+													IsStruct:         true,
 												},
 											},
 										},
@@ -600,28 +638,33 @@ func TestParser_ParseDirectory(t *testing.T) {
 												{
 													Name: "input",
 													TypeInfo: &parse.TypeInfo{
-														TypeName:  "*string",
-														IsPointer: true,
+														TypeName:         "*string",
+														ExternalTypeName: "*string",
+														IsPointer:        true,
 														Pointer: &parse.TypeInfo{
-															TypeName: "string",
+															TypeName:         "string",
+															ExternalTypeName: "string",
 														},
 													},
 												},
 												{
 													Name: "f",
 													TypeInfo: &parse.TypeInfo{
-														TypeName: "func([]TestInterface) map[string]TestStruct",
-														IsFunc:   true,
+														TypeName:         "func([]TestInterface) map[string]TestStruct",
+														ExternalTypeName: "func([]interfaces.TestInterface) map[string]interfaces.TestStruct",
+														IsFunc:           true,
 														Func: &parse.FuncDefInfo{
 															Params: []*parse.ParamInfo{
 																{
 																	Name: "",
 																	TypeInfo: &parse.TypeInfo{
-																		TypeName: "[]TestInterface",
-																		IsSlice:  true,
+																		TypeName:         "[]TestInterface",
+																		ExternalTypeName: "[]interfaces.TestInterface",
+																		IsSlice:          true,
 																		Slice: &parse.TypeInfo{
-																			TypeName:    "TestInterface",
-																			IsInterface: true,
+																			TypeName:         "TestInterface",
+																			ExternalTypeName: "interfaces.TestInterface",
+																			IsInterface:      true,
 																		},
 																	},
 																},
@@ -629,14 +672,17 @@ func TestParser_ParseDirectory(t *testing.T) {
 															Results: []*parse.ResultInfo{
 																{
 																	TypeInfo: &parse.TypeInfo{
-																		TypeName: "map[string]TestStruct",
-																		IsMap:    true,
+																		TypeName:         "map[string]TestStruct",
+																		ExternalTypeName: "map[string]interfaces.TestStruct",
+																		IsMap:            true,
 																		MapKey: &parse.TypeInfo{
-																			TypeName: "string",
+																			TypeName:         "string",
+																			ExternalTypeName: "string",
 																		},
 																		MapValue: &parse.TypeInfo{
-																			TypeName: "TestStruct",
-																			IsStruct: true,
+																			TypeName:         "TestStruct",
+																			ExternalTypeName: "interfaces.TestStruct",
+																			IsStruct:         true,
 																		},
 																	},
 																},
@@ -649,13 +695,15 @@ func TestParser_ParseDirectory(t *testing.T) {
 												{
 													Name: "output",
 													TypeInfo: &parse.TypeInfo{
-														TypeName: "string",
+														TypeName:         "string",
+														ExternalTypeName: "string",
 													},
 												},
 												{
 													Name: "err",
 													TypeInfo: &parse.TypeInfo{
-														TypeName: "error",
+														TypeName:         "error",
+														ExternalTypeName: "error",
 													},
 												},
 											},
@@ -691,7 +739,8 @@ func TestParser_ParseDirectory(t *testing.T) {
 								Name:    "MyString",
 								Markers: map[string]string{},
 								TypeInfo: &parse.TypeInfo{
-									TypeName: "string",
+									TypeName:         "string",
+									ExternalTypeName: "string",
 								},
 							},
 						},
@@ -721,21 +770,24 @@ func TestParser_ParseDirectory(t *testing.T) {
 									"+Bar": "123",
 								},
 								TypeInfo: &parse.TypeInfo{
-									TypeName: "func(string) error",
-									IsFunc:   true,
+									TypeName:         "func(string) error",
+									ExternalTypeName: "func(string) error",
+									IsFunc:           true,
 									Func: &parse.FuncDefInfo{
 										Params: []*parse.ParamInfo{
 											{
 												Name: "arg",
 												TypeInfo: &parse.TypeInfo{
-													TypeName: "string",
+													TypeName:         "string",
+													ExternalTypeName: "string",
 												},
 											},
 										},
 										Results: []*parse.ResultInfo{
 											{
 												TypeInfo: &parse.TypeInfo{
-													TypeName: "error",
+													TypeName:         "error",
+													ExternalTypeName: "error",
 												},
 											},
 										},
@@ -766,8 +818,9 @@ func TestParser_ParseDirectory(t *testing.T) {
 								Name:    "ParentStruct",
 								Markers: map[string]string{},
 								TypeInfo: &parse.TypeInfo{
-									TypeName: "func()",
-									IsFunc:   true,
+									TypeName:         "func()",
+									ExternalTypeName: "func()",
+									IsFunc:           true,
 									Func: &parse.FuncDefInfo{
 										Params:  []*parse.ParamInfo{},
 										Results: []*parse.ResultInfo{},
@@ -870,26 +923,28 @@ func TestParser_ParseDirectory(t *testing.T) {
 								Name:    "StringType",
 								Markers: map[string]string{"+Bar": "123", "+Foo": "true"},
 								TypeInfo: &parse.TypeInfo{
-									TypeName: "string",
+									TypeName:         "string",
+									ExternalTypeName: "string",
 								},
 							},
 							"AStructType": {
 								Name:     "AStructType",
 								Markers:  map[string]string{"+Bar": "123", "+Foo": "true"},
-								TypeInfo: &parse.TypeInfo{TypeName: "AStruct", IsStruct: true},
+								TypeInfo: &parse.TypeInfo{TypeName: "AStruct", ExternalTypeName: "typing.AStruct", IsStruct: true},
 							},
 							"IntType": {
 								Name:     "IntType",
 								Markers:  map[string]string{"+Bar": "123", "+Foo": "true"},
-								TypeInfo: &parse.TypeInfo{TypeName: "int"},
+								TypeInfo: &parse.TypeInfo{TypeName: "int", ExternalTypeName: "int"},
 							},
 							"SliceType": {
 								Name:    "SliceType",
 								Markers: map[string]string{"+Bar": "123", "+Foo": "true"},
 								TypeInfo: &parse.TypeInfo{
-									TypeName: "[]AStruct",
-									IsSlice:  true,
-									Slice:    &parse.TypeInfo{TypeName: "AStruct", IsStruct: true},
+									TypeName:         "[]AStruct",
+									ExternalTypeName: "[]typing.AStruct",
+									IsSlice:          true,
+									Slice:            &parse.TypeInfo{TypeName: "AStruct", ExternalTypeName: "typing.AStruct", IsStruct: true},
 								},
 							},
 						},
@@ -897,7 +952,7 @@ func TestParser_ParseDirectory(t *testing.T) {
 							"AliasStringType": {
 								Name:     "AliasStringType",
 								Markers:  map[string]string{"+Bar": "123", "+Foo": "true"},
-								TypeInfo: &parse.TypeInfo{TypeName: "string"},
+								TypeInfo: &parse.TypeInfo{TypeName: "string", ExternalTypeName: "string"},
 							},
 						},
 					},

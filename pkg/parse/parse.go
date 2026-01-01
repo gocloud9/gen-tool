@@ -55,26 +55,27 @@ type ImportedTypeInfo struct {
 }
 
 type TypeInfo struct {
-	TypeName     string
-	PackageName  string
-	IsPointer    bool
-	IsMap        bool
-	IsSlice      bool
-	IsStruct     bool
-	IsChan       bool
-	IsFunc       bool
-	IsInterface  bool
-	IsEllipsis   bool
-	IsImported   bool
-	MapKey       *TypeInfo
-	MapValue     *TypeInfo
-	Slice        *TypeInfo
-	Chan         *TypeInfo
-	Func         *FuncDefInfo
-	Interface    *InterfaceInfo
-	Pointer      *TypeInfo
-	Ellipsis     *TypeInfo
-	ImportedType *ImportedTypeInfo
+	TypeName         string
+	ExternalTypeName string
+	PackageName      string
+	IsPointer        bool
+	IsMap            bool
+	IsSlice          bool
+	IsStruct         bool
+	IsChan           bool
+	IsFunc           bool
+	IsInterface      bool
+	IsEllipsis       bool
+	IsImported       bool
+	MapKey           *TypeInfo
+	MapValue         *TypeInfo
+	Slice            *TypeInfo
+	Chan             *TypeInfo
+	Func             *FuncDefInfo
+	Interface        *InterfaceInfo
+	Pointer          *TypeInfo
+	Ellipsis         *TypeInfo
+	ImportedType     *ImportedTypeInfo
 }
 type FieldInfo struct {
 	Name    string
@@ -154,36 +155,44 @@ func exprToTypeInfo(e ast.Expr, fileCache fileCachedData) *TypeInfo {
 		varInfo.MapKey = exprToTypeInfo(expr.Key, fileCache)
 		varInfo.MapValue = exprToTypeInfo(expr.Value, fileCache)
 		varInfo.TypeName = fmt.Sprintf("map[%s]%s", varInfo.MapKey.TypeName, varInfo.MapValue.TypeName)
+		varInfo.ExternalTypeName = fmt.Sprintf("map[%s]%s", varInfo.MapKey.ExternalTypeName, varInfo.MapValue.ExternalTypeName)
 	case *ast.SliceExpr:
 		varInfo.IsSlice = true
 		varInfo.Slice = exprToTypeInfo(expr.X, fileCache)
 		varInfo.TypeName = "[]" + varInfo.Slice.TypeName
+		varInfo.ExternalTypeName = "[]" + varInfo.Slice.ExternalTypeName
 	case *ast.StarExpr:
 		varInfo.IsPointer = true
 		varInfo.Pointer = exprToTypeInfo(expr.X, fileCache)
 		varInfo.TypeName = "*" + varInfo.Pointer.TypeName
+		varInfo.ExternalTypeName = "*" + varInfo.Pointer.ExternalTypeName
 	case *ast.ArrayType:
 		varInfo.IsSlice = true
 		varInfo.Slice = exprToTypeInfo(expr.Elt, fileCache)
 		varInfo.TypeName = "[]" + varInfo.Slice.TypeName
+		varInfo.ExternalTypeName = "[]" + varInfo.Slice.ExternalTypeName
 	case *ast.ChanType:
 		varInfo.IsChan = true
 		varInfo.Chan = exprToTypeInfo(expr.Value, fileCache)
 		varInfo.TypeName = "chan " + varInfo.Chan.TypeName
+		varInfo.ExternalTypeName = "chan " + varInfo.Chan.ExternalTypeName
 	case *ast.StructType:
 		varInfo.IsStruct = true
+
 	case *ast.InterfaceType:
 		varInfo.IsInterface = true
 	case *ast.Ellipsis:
 		varInfo.IsEllipsis = true
 		varInfo.Ellipsis = exprToTypeInfo(expr.Elt, fileCache)
 		varInfo.TypeName = "..." + varInfo.Ellipsis.TypeName
+		varInfo.ExternalTypeName = "..." + varInfo.Ellipsis.ExternalTypeName
 	case *ast.FuncType:
 		varInfo.IsFunc = true
 		params := fieldListToParamInfoList(expr.Params, fileCache)
 		results := fieldListToResultInfoList(expr.Results, fileCache)
 
-		varInfo.TypeName = funcTypeNameFromParamsAndResults(params, results)
+		varInfo.TypeName = funcTypeNameFromParamsAndResults(params, results, false)
+		varInfo.ExternalTypeName = funcTypeNameFromParamsAndResults(params, results, true)
 
 		varInfo.Func = &FuncDefInfo{
 			IsVariadic: isVariadicFunc(params),
@@ -205,6 +214,7 @@ func exprToTypeInfo(e ast.Expr, fileCache fileCachedData) *TypeInfo {
 				PackageDefaultAlias: parts[len(parts)-1],
 			}
 			varInfo.TypeName = varInfo.ImportedType.PackageDefaultAlias + "." + varInfo.TypeName
+			varInfo.ExternalTypeName = varInfo.TypeName
 		}
 
 	case *ast.Ident:
@@ -213,13 +223,19 @@ func exprToTypeInfo(e ast.Expr, fileCache fileCachedData) *TypeInfo {
 			case *ast.TypeSpec:
 				varInfo = exprToTypeInfo(s.Type, fileCache)
 				varInfo.TypeName = s.Name.Name
+				varInfo.ExternalTypeName = fileCache.packageName + "." + varInfo.TypeName
 
 			case *ast.Field:
 				varInfo = exprToTypeInfo(s.Type, fileCache)
+				//varInfo.ExternalTypeName = varInfo.TypeName
+				if varInfo.IsStruct {
+					varInfo.ExternalTypeName = fileCache.packageName + "." + varInfo.TypeName
+				}
 			}
 		}
 		if expr.Obj == nil {
 			varInfo.TypeName = expr.Name
+			varInfo.ExternalTypeName = varInfo.TypeName
 		}
 	}
 
@@ -268,8 +284,9 @@ func handleValueSpec(node *ast.ValueSpec, pi *PackageInfo, fileCache fileCachedD
 				Name:    name.Obj.Name,
 				Markers: markerValues(node.Doc),
 				TypeInfo: &TypeInfo{
-					TypeName: funcTypeNameFromParamsAndResults(params, results),
-					IsFunc:   true,
+					TypeName:         funcTypeNameFromParamsAndResults(params, results, false),
+					ExternalTypeName: funcTypeNameFromParamsAndResults(params, results, true),
+					IsFunc:           true,
 					Func: &FuncDefInfo{
 						IsVariadic: isVariadicFunc(params),
 						Params:     params,
@@ -281,14 +298,22 @@ func handleValueSpec(node *ast.ValueSpec, pi *PackageInfo, fileCache fileCachedD
 	}
 }
 
-func funcTypeNameFromParamsAndResults(params []*ParamInfo, results []*ResultInfo) string {
+func funcTypeNameFromParamsAndResults(params []*ParamInfo, results []*ResultInfo, external bool) string {
 	paramTypes := []string{}
 	for _, p := range params {
-		paramTypes = append(paramTypes, p.TypeName)
+		if external {
+			paramTypes = append(paramTypes, p.ExternalTypeName)
+		} else {
+			paramTypes = append(paramTypes, p.TypeName)
+		}
 	}
 	resultTypes := []string{}
 	for _, r := range results {
-		resultTypes = append(resultTypes, r.TypeName)
+		if external {
+			resultTypes = append(resultTypes, r.ExternalTypeName)
+		} else {
+			resultTypes = append(resultTypes, r.TypeName)
+		}
 	}
 
 	resultsPrefix := ""
@@ -340,11 +365,13 @@ func handleFuncDecl(node *ast.FuncDecl, pi *PackageInfo, fileCache fileCachedDat
 type fileCachedData struct {
 	commentGroups map[token.Pos]*ast.CommentGroup
 	imports       map[string]*ast.ImportSpec
+	packageName   string
 }
 
 type Options struct {
 	Path                       string
 	SkipFilesWithContentsRegex []*regexp.Regexp
+	IncludeEmptyPackages       bool
 }
 
 func (p *Parser) ParseDirectory(opts Options) (*Results, error) {
@@ -380,6 +407,7 @@ func (p *Parser) ParseDirectory(opts Options) (*Results, error) {
 			fileCacheData := fileCachedData{
 				commentGroups: map[token.Pos]*ast.CommentGroup{},
 				imports:       map[string]*ast.ImportSpec{},
+				packageName:   pkg.Name,
 			}
 
 			skipFile := false
@@ -419,6 +447,7 @@ func (p *Parser) ParseDirectory(opts Options) (*Results, error) {
 				return true
 			})
 		}
+
 		results.Packages[pi.Name] = pi
 	}
 

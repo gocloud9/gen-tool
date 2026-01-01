@@ -24,9 +24,11 @@ func Test2() error {
 // +Foo=true
 // +Bar=123
 func Test3(
+
 	// +ArgFoo=true
 	// +ArgBar=123
 	arg string,
+
 ) {
 }
 

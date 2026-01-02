@@ -67,6 +67,7 @@ type TypeInfo struct {
 	IsInterface      bool
 	IsEllipsis       bool
 	IsImported       bool
+	IsType           bool
 	MapKey           *TypeInfo
 	MapValue         *TypeInfo
 	Slice            *TypeInfo
@@ -76,6 +77,7 @@ type TypeInfo struct {
 	Pointer          *TypeInfo
 	Ellipsis         *TypeInfo
 	ImportedType     *ImportedTypeInfo
+	TypeOf           *TypeInfo
 }
 type FieldInfo struct {
 	Name    string
@@ -227,7 +229,6 @@ func exprToTypeInfo(e ast.Expr, fileCache fileCachedData) *TypeInfo {
 
 			case *ast.Field:
 				varInfo = exprToTypeInfo(s.Type, fileCache)
-				//varInfo.ExternalTypeName = varInfo.TypeName
 				if varInfo.IsStruct {
 					varInfo.ExternalTypeName = fileCache.packageName + "." + varInfo.TypeName
 				}
@@ -236,6 +237,14 @@ func exprToTypeInfo(e ast.Expr, fileCache fileCachedData) *TypeInfo {
 		if expr.Obj == nil {
 			varInfo.TypeName = expr.Name
 			varInfo.ExternalTypeName = varInfo.TypeName
+		} else {
+			if expr.Obj.Decl != nil {
+				t, ok := expr.Obj.Decl.(*ast.TypeSpec)
+				if ok {
+					varInfo.TypeOf = exprToTypeInfo(t.Type, fileCache)
+					varInfo.IsType = true
+				}
+			}
 		}
 	}
 
